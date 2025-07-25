@@ -117,7 +117,6 @@ virt-manager
 ### VM Management Commands
 
 ```bash
-<<<<<<< HEAD
 # Start VM
 sudo virsh start VM_NAME
 
@@ -140,7 +139,6 @@ sudo virsh dominfo VM_NAME
 sudo virsh edit VM_NAME
 =======
 sudo virsh define /path/to/output/vm_name.xml
->>>>>>> 5ebeb1f6f0c28d4632ed44ffe2899d21d50187b8
 ```
 
 ### Remove VM Completely
