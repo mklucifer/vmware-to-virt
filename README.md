@@ -117,6 +117,7 @@ virt-manager
 ### VM Management Commands
 
 ```bash
+<<<<<<< HEAD
 # Start VM
 sudo virsh start VM_NAME
 
@@ -139,6 +140,7 @@ sudo virsh dominfo VM_NAME
 sudo virsh edit VM_NAME
 =======
 sudo virsh define /path/to/output/vm_name.xml
+>>>>>>> 5ebeb1f6f0c28d4632ed44ffe2899d21d50187b8
 ```
 
 ### Remove VM Completely
@@ -176,6 +178,7 @@ The converter now includes comprehensive validation that checks:
 - ⚠️ **VM state warnings**: Detects suspended/crashed VM states
 - ⚠️ **Memory dump detection**: Identifies VMs that weren't properly shut down
 - ❌ **Corruption detection**: Stops conversion of corrupted/non-bootable VMs
+- 🔒 **Encryption detection**: Identifies encrypted VMs that cannot be converted
 
 ### Validation Failure Resolution
 
@@ -210,7 +213,15 @@ If validation fails:
    - Original VMware VM lacks proper boot sector/partition table
    - Verify VM boots in VMware before conversion
 
-6. **Conversion hangs or is very slow**
+6. **"VM appears to be encrypted" validation error**
+   - VMware VM is encrypted and cannot be converted directly
+   - **Solution**: Decrypt the VM in VMware first:
+     - **VMware Workstation**: VM > Settings > Options > Encryption > Decrypt
+     - **VMware ESXi**: Use vSphere Client to remove encryption
+     - **VMware Fusion**: VM > Settings > Encryption > Decrypt
+   - Re-run conversion after decryption
+
+7. **Conversion hangs or is very slow**
    - Large disk files (>50GB) can take 10-30 minutes
    - Ensure sufficient disk space (2x source disk size)
    - Check system resources (CPU/RAM/disk I/O)
@@ -238,6 +249,7 @@ If validation fails:
 
 ## Limitations
 
+- **Encrypted VMs are not supported** (must be decrypted in VMware first)
 - Snapshots are not converted (consolidate in VMware first)
 - USB device mappings are not preserved
 - VMware Tools integration is lost (install virtio drivers instead)

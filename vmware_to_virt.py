@@ -110,7 +110,31 @@ class VMwareToVirtConverter:
         if vmss_files:
             warnings.append(f"Found {len(vmss_files)} snapshot files (.vmss) - VM may be in suspended state")
         
-        # Check each VMDK file for bootability
+        # Check for encrypted VM
+        vmx_files = list(self.input_dir.glob("*.vmx"))
+        if vmx_files:
+            try:
+                vmx_config = self.parse_vmx_config(vmx_files[0])
+                
+                # Check for encryption indicators in VMX
+                encryption_indicators = [
+                    'encryption.encryptedVMotion',
+                    'encryption.data',
+                    'encryption.required',
+                    'encryption.bundle',
+                    'encryption.keySafe'
+                ]
+                
+                for indicator in encryption_indicators:
+                    if indicator in vmx_config:
+                        validation_errors.append("VM appears to be encrypted - encrypted VMs cannot be converted")
+                        click.echo(f"    ❌ Encryption detected: {indicator} = {vmx_config[indicator]}")
+                        break
+                        
+            except Exception as e:
+                warnings.append(f"Could not check VMX for encryption: {e}")
+        
+        # Check each VMDK file for bootability and encryption
         vmdk_files = list(self.input_dir.glob("*.vmdk"))
         bootable_disks = 0
         
@@ -119,6 +143,20 @@ class VMwareToVirtConverter:
             
             # Check if VMDK has a partition table
             try:
+                # First check if VMDK is encrypted by trying to read it
+                encryption_check = subprocess.run([
+                    "qemu-img", "info", str(vmdk)
+                ], capture_output=True, text=True, check=False)
+                
+                if "encrypted: yes" in encryption_check.stdout.lower():
+                    validation_errors.append(f"{vmdk.name} is encrypted and cannot be converted")
+                    click.echo(f"    ❌ {vmdk.name} is encrypted")
+                    continue
+                elif encryption_check.returncode != 0 and "encrypted" in encryption_check.stderr.lower():
+                    validation_errors.append(f"{vmdk.name} may be encrypted - qemu-img cannot read it")
+                    click.echo(f"    ❌ {vmdk.name} may be encrypted (qemu-img error)")
+                    continue
+                
                 result = subprocess.run([
                     "fdisk", "-l", str(vmdk)
                 ], capture_output=True, text=True, check=False)
@@ -186,6 +224,9 @@ class VMwareToVirtConverter:
             click.echo("  • Properly shut down the VM before conversion")
             click.echo("  • Delete any snapshots and memory files")
             click.echo("  • Use VMware's disk repair tools if needed")
+            click.echo("  • If encrypted: Decrypt the VM in VMware before conversion")
+            click.echo("    - VMware Workstation: VM > Settings > Options > Encryption > Decrypt")
+            click.echo("    - VMware ESXi: Use vSphere Client to remove encryption")
             
             return False
         
