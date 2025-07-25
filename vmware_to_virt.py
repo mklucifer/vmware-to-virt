@@ -116,19 +116,17 @@ class VMwareToVirtConverter:
             try:
                 vmx_config = self.parse_vmx_config(vmx_files[0])
                 
-                # Check for encryption indicators in VMX
+                # Check for encryption indicators in VMX (only if explicitly enabled)
                 encryption_indicators = [
-                    'encryption.encryptedVMotion',
-                    'encryption.data',
-                    'encryption.required',
-                    'encryption.bundle',
-                    'encryption.keySafe'
+                    ('encryption.required', 'TRUE'),
+                    ('encryption.data', 'TRUE'),
+                    ('encryption.bundle', 'TRUE')
                 ]
                 
-                for indicator in encryption_indicators:
-                    if indicator in vmx_config:
-                        validation_errors.append("VM appears to be encrypted - encrypted VMs cannot be converted")
-                        click.echo(f"    ❌ Encryption detected: {indicator} = {vmx_config[indicator]}")
+                for indicator, required_value in encryption_indicators:
+                    if indicator in vmx_config and vmx_config[indicator].upper() == required_value:
+                        validation_errors.append("VM is encrypted - encrypted VMs cannot be converted")
+                        click.echo(f"    ❌ Encryption enabled: {indicator} = {vmx_config[indicator]}")
                         break
                         
             except Exception as e:
@@ -148,14 +146,20 @@ class VMwareToVirtConverter:
                     "qemu-img", "info", str(vmdk)
                 ], capture_output=True, text=True, check=False)
                 
+                # Only fail if explicitly encrypted or completely unreadable
                 if "encrypted: yes" in encryption_check.stdout.lower():
                     validation_errors.append(f"{vmdk.name} is encrypted and cannot be converted")
                     click.echo(f"    ❌ {vmdk.name} is encrypted")
                     continue
-                elif encryption_check.returncode != 0 and "encrypted" in encryption_check.stderr.lower():
-                    validation_errors.append(f"{vmdk.name} may be encrypted - qemu-img cannot read it")
-                    click.echo(f"    ❌ {vmdk.name} may be encrypted (qemu-img error)")
-                    continue
+                elif encryption_check.returncode != 0:
+                    # Check if it's a real encryption error vs other issues
+                    if "encrypted" in encryption_check.stderr.lower() or "password" in encryption_check.stderr.lower():
+                        validation_errors.append(f"{vmdk.name} appears to be encrypted - qemu-img cannot read it")
+                        click.echo(f"    ❌ {vmdk.name} appears encrypted (qemu-img error)")
+                        continue
+                    else:
+                        # Just a warning for other qemu-img issues
+                        warnings.append(f"qemu-img had issues reading {vmdk.name}: {encryption_check.stderr.strip()}")
                 
                 result = subprocess.run([
                     "fdisk", "-l", str(vmdk)
@@ -165,7 +169,7 @@ class VMwareToVirtConverter:
                     click.echo(f"    ✅ {vmdk.name} has valid partition table")
                     bootable_disks += 1
                 else:
-                    click.echo(f"    ❌ {vmdk.name} has no partition table")
+                    click.echo(f"    ⚠️  {vmdk.name} has no detectable partition table")
                     
                     # Check if it's a descriptor file (split disk)
                     try:
@@ -177,7 +181,8 @@ class VMwareToVirtConverter:
                     except:
                         pass
                     
-                    validation_errors.append(f"{vmdk.name} has no partition table and may not be bootable")
+                    # Warn instead of failing - some VMs may still be bootable
+                    warnings.append(f"{vmdk.name} has no detectable partition table - VM may not boot properly")
                         
             except Exception as e:
                 warnings.append(f"Could not analyze {vmdk.name}: {e}")
