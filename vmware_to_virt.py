@@ -446,7 +446,7 @@ quit"""
   <currentMemory unit="KiB">{memory_kb}</currentMemory>
   <vcpu placement="static">{vcpus}</vcpu>
   <os>
-    <type arch="x86_64" machine="pc-i440fx-2.9">hvm</type>
+    <type arch="x86_64" machine="pc-q35-6.2">hvm</type>
     <boot dev="hd"/>
   </os>
   <features>
