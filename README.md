@@ -88,7 +88,7 @@ After conversion:
 
 Alternatively, use virsh command line:
 ```bash
-virsh define /path/to/output/vm_name.xml
+sudo virsh define /path/to/output/vm_name.xml
 ```
 
 ## Supported VMware Formats
