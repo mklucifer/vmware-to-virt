@@ -305,12 +305,13 @@ class VMwareToVirtConverter:
                             click.echo(f"    Warning: {result.stderr}")
                 else:
                     # Use detected format for non-raw formats
+                    click.echo(f"    Converting {vmdk.stat().st_size // (1024**3):.1f}GB disk as {detected_format} format - this may take several minutes...")
                     result = subprocess.run([
                         "qemu-img", "convert", "-f", detected_format,
                         "-O", "qcow2", "-p",
                         str(vmdk),
                         str(output_path)
-                    ], capture_output=True, text=True, check=True)
+                    ], text=True, check=True)  # Remove capture_output to show progress
                 
                 # Verify the converted disk has a valid partition table
                 self.verify_converted_disk(output_path)
