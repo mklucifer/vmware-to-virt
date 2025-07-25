@@ -488,11 +488,11 @@ quit"""
             if not disk_file.exists():
                 raise FileNotFoundError(f"Disk file does not exist: {abs_disk_path}")
                 
-            # Create disk XML with IDE bus for maximum compatibility
+            # Create disk XML with SATA bus for Q35 compatibility
             disk_xml = f'''    <disk type="file" device="disk">
       <driver name="qemu" type="qcow2" cache="writethrough"/>
       <source file="{abs_disk_path}"/>
-      <target dev="hd{chr(97 + i)}" bus="ide"/>
+      <target dev="sd{chr(97 + i)}" bus="sata"/>
     </disk>'''
             disk_xml_parts.append(disk_xml)
         
