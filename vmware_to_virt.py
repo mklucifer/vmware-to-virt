@@ -139,6 +139,21 @@ class VMwareToVirtConverter:
         for vmdk in vmdk_files:
             click.echo(f"  Checking {vmdk.name}...")
             
+            # Skip very small files that are likely descriptors
+            if vmdk.stat().st_size < 1024:
+                click.echo(f"    ℹ️  {vmdk.name} is very small ({vmdk.stat().st_size} bytes) - likely a descriptor file")
+                continue
+            
+            # Check if it's a text descriptor file
+            try:
+                with open(vmdk, 'r', encoding='utf-8') as f:
+                    content = f.read(1024)  # Read first 1KB
+                    if "createType" in content and "VMDK" in content:
+                        click.echo(f"    ℹ️  {vmdk.name} appears to be a descriptor file (split disk)")
+                        continue  # Skip validation for descriptor files
+            except:
+                pass  # Not a text file, continue with binary validation
+            
             # Check if VMDK has a partition table
             try:
                 # First check if VMDK is encrypted by trying to read it
@@ -156,6 +171,10 @@ class VMwareToVirtConverter:
                     if "encrypted" in encryption_check.stderr.lower() or "password" in encryption_check.stderr.lower():
                         validation_errors.append(f"{vmdk.name} appears to be encrypted - qemu-img cannot read it")
                         click.echo(f"    ❌ {vmdk.name} appears encrypted (qemu-img error)")
+                        continue
+                    elif "invalid argument" in encryption_check.stderr.lower() or "could not open" in encryption_check.stderr.lower():
+                        # Likely a descriptor file or unsupported VMDK variant
+                        click.echo(f"    ℹ️  {vmdk.name} cannot be read by qemu-img (likely descriptor/split disk component)")
                         continue
                     else:
                         # Just a warning for other qemu-img issues
