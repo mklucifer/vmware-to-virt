@@ -137,8 +137,6 @@ sudo virsh dominfo VM_NAME
 
 # Edit VM configuration
 sudo virsh edit VM_NAME
-=======
-sudo virsh define /path/to/output/vm_name.xml
 ```
 
 ### Remove VM Completely
